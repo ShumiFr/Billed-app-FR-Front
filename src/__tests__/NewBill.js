@@ -208,4 +208,29 @@ describe("Given I am connected as an employee", () => {
   });
 });
 
-/* Test d'intégration POST */
+/* Le test doit simuler un utilisateur remplissant le formulaire et soumettant une nouvelle note de frais.
+
+  Il doit également vérifier que l'API est appelée correctement, que les données sont bien transmises,
+  et que le comportement en cas d'erreur est géré comme attendu
+  
+  1. Analyser le code existant :
+    ○ sumbit du formulaire =
+      → handleSubmit()
+      → qui à sont tour appelle updateBill pour faire la requête POST via this.store.bills().update(...).
+    
+    ○ Je dois m'appuyer sur le mock de l'API pour simuler son appel.
+      → Exemple : this.store.bills().update().
+  
+  Cas de succés (requête POST réussie) : Vérifier que l'appel à l'API est correct et que la redirection vers la page de notes de frais est effectué.
+  Cas d'erreur (requête POST échouée) : Simuler une erreur et vérigier que l'erreur est gérée correctement.
+  
+  • Utils :
+    → fireEvent pour remplir le formulaire : On simulte l'interaction utilisateur.
+  
+  • Aide :
+    → Pour vérifier si l'API à fonctionné, il faut vérifier le statut code de la requête http
+      → 200 = OK
+      → 400 = Bad Request
+      → 500 = Internal Server Error
+    → Pour vérifier si la redirection a fonctionné, il faut vérifier si la méthode onNavigate a été appelée avec le bon argument.
+    → Pour simuler une erreur, on peut utiliser le mock de l'API pour forcer une erreur.  */
