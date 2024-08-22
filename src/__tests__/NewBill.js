@@ -2,10 +2,11 @@
  * @jest-environment jsdom
  */
 
-import { screen } from "@testing-library/dom";
+import { screen, fireEvent } from "@testing-library/dom";
 import NewBillUI from "../views/NewBillUI.js";
 import NewBill from "../containers/NewBill.js";
 import { ROUTES_PATH } from "../constants/routes.js";
+import { localStorageMock } from "../__mocks__/localStorage.js";
 
 describe("Given I am connected as an employee", () => {
   describe("When I am on NewBill Page", () => {
@@ -203,6 +204,119 @@ describe("Given I am connected as an employee", () => {
 
       // Nettoyage
       updateBillSpy.mockRestore();
+    });
+  });
+});
+
+/* Test d'intégration POST */
+
+describe("Given I am connected as an employee", () => {
+  describe("When I submit a new bill", () => {
+    test("Then it should send the bill to the API and redirect to Bills page", async () => {
+      // Setup du DOM avec NewBillUI
+      document.body.innerHTML = NewBillUI();
+
+      // Mock des fonctions nécessaires
+      const onNavigate = jest.fn();
+      const store = {
+        bills: jest.fn(() => ({
+          create: jest.fn().mockResolvedValue({ key: "12345" }),
+          update: jest.fn().mockResolvedValue({}),
+        })),
+      };
+
+      // Initialisation de localStorage
+      window.localStorage.setItem(
+        "user",
+        JSON.stringify({ email: "employee@test.com" })
+      );
+
+      // Instantiation de NewBill
+      const newBill = new NewBill({
+        document,
+        onNavigate,
+        store,
+        localStorage: window.localStorage,
+      });
+
+      // Simulation de la soumission du formulaire avec des valeurs valides
+      const form = screen.getByTestId("form-new-bill");
+      const inputExpenseName = screen.getByTestId("expense-name");
+      const inputDatepicker = screen.getByTestId("datepicker");
+      const inputAmount = screen.getByTestId("amount");
+      const inputVat = screen.getByTestId("vat");
+      const inputPct = screen.getByTestId("pct");
+      const inputFile = screen.getByTestId("file");
+
+      // Remplir les champs
+      fireEvent.change(inputExpenseName, { target: { value: "Test expense" } });
+      fireEvent.change(inputDatepicker, { target: { value: "2023-10-10" } });
+      fireEvent.change(inputAmount, { target: { value: "100" } });
+      fireEvent.change(inputVat, { target: { value: "20" } });
+      fireEvent.change(inputPct, { target: { value: "10" } });
+      fireEvent.change(inputFile, {
+        target: {
+          files: [
+            new File(["file content"], "file.png", { type: "image/png" }),
+          ],
+        },
+      });
+
+      // Simulation de la soumission du formulaire
+      const handleSubmit = jest.fn(newBill.handleSubmit);
+      form.addEventListener("submit", handleSubmit);
+      fireEvent.submit(form);
+
+      // Attendre que la soumission soit terminée
+      await new Promise(process.nextTick);
+
+      // Vérifications
+      expect(handleSubmit).toHaveBeenCalled();
+      expect(store.bills().create).toHaveBeenCalled();
+      expect(store.bills().update).toHaveBeenCalledWith({
+        data: expect.any(String), // Les données JSON envoyées
+        selector: "12345", // L'ID retourné par le backend
+      });
+      expect(onNavigate).toHaveBeenCalledWith(ROUTES_PATH["Bills"]);
+    });
+
+    test("Then it should handle API errors gracefully", async () => {
+      // Setup du DOM avec NewBillUI
+      document.body.innerHTML = NewBillUI();
+
+      // Mock des fonctions nécessaires avec une réponse d'erreur
+      const onNavigate = jest.fn();
+      const store = {
+        bills: jest.fn(() => ({
+          create: jest.fn().mockRejectedValue(new Error("Erreur API")),
+          update: jest.fn().mockResolvedValue({}),
+        })),
+      };
+
+      // Initialisation de localStorage
+      window.localStorage.setItem(
+        "user",
+        JSON.stringify({ email: "employee@test.com" })
+      );
+
+      // Instantiation de NewBill
+      const newBill = new NewBill({
+        document,
+        onNavigate,
+        store,
+        localStorage: window.localStorage,
+      });
+
+      // Simulation de la soumission du formulaire
+      const form = screen.getByTestId("form-new-bill");
+      fireEvent.submit(form);
+
+      // Attendre que la soumission soit terminée
+      await new Promise(process.nextTick);
+
+      // Vérifications
+      expect(store.bills().create).toHaveBeenCalled();
+      expect(console.error).toHaveBeenCalledWith(expect.any(Error));
     });
   });
 });
