@@ -33,7 +33,7 @@ describe("Given I am connected as an employee", () => {
       // Initialisation de localStorage avec les données nécessaires
       window.localStorage.setItem(
         "user",
-        JSON.stringify({ email: "employee@test.com" })
+        JSON.stringify({ email: "employee@test.tld" })
       );
 
       // Je récupère le champs input
@@ -90,7 +90,7 @@ describe("Given I am connected as an employee", () => {
       // Initialisation de localStorage avec les données nécessaires
       window.localStorage.setItem(
         "user",
-        JSON.stringify({ email: "employee@test.com" })
+        JSON.stringify({ email: "employee@test.tld" })
       );
 
       // Je récupère le champs input
@@ -139,7 +139,7 @@ describe("Given I am connected as an employee", () => {
       // Initialisation de localStorage avec les données nécessaires
       window.localStorage.setItem(
         "user",
-        JSON.stringify({ email: "employee@test.com" })
+        JSON.stringify({ email: "employee@test.tld" })
       );
 
       const newBill = new NewBill({
@@ -186,7 +186,7 @@ describe("Given I am connected as an employee", () => {
 
       // Vérifie que updateBill a été appelé avec les bons arguments
       expect(updateBillSpy).toHaveBeenCalledWith({
-        email: "employee@test.com",
+        email: "employee@test.tld",
         type: "Transports",
         name: "Train ticket",
         amount: 100,
@@ -222,7 +222,7 @@ describe("Given I am connected as an employee", () => {
       → Exemple : this.store.bills().update().
   
   Cas de succés (requête POST réussie) : Vérifier que l'appel à l'API est correct et que la redirection vers la page de notes de frais est effectué.
-  Cas d'erreur (requête POST échouée) : Simuler une erreur et vérigier que l'erreur est gérée correctement.
+  Cas d'erreur (requête POST échouée) : Simuler une erreur et vérifier que l'erreur est gérée correctement.
   
   • Utils :
     → fireEvent pour remplir le formulaire : On simulte l'interaction utilisateur.
@@ -234,3 +234,79 @@ describe("Given I am connected as an employee", () => {
       → 500 = Internal Server Error
     → Pour vérifier si la redirection a fonctionné, il faut vérifier si la méthode onNavigate a été appelée avec le bon argument.
     → Pour simuler une erreur, on peut utiliser le mock de l'API pour forcer une erreur.  */
+
+describe("Given I am connected as an employee", () => {
+  describe("When I submit the form", () => {
+    test("Then the API call should be correct and the redirection to the expense page should be performed", async () => {
+      document.body.innerHTML = NewBillUI();
+      const onNavigate = jest.fn();
+      const store = {};
+
+      // Initialisation de localStorage avec les données nécessaires
+      window.localStorage.setItem(
+        "user",
+        JSON.stringify({ email: "employee@test.tld" })
+      );
+
+      const newBill = new NewBill({
+        document,
+        onNavigate,
+        store,
+        localStorage: window.localStorage,
+      });
+
+      const expenseType = screen.getByTestId("expense-type");
+      const expenseName = screen.getByTestId("expense-name");
+      const amount = screen.getByTestId("amount");
+      const datepicker = screen.getByTestId("datepicker");
+      const vat = screen.getByTestId("vat");
+      const pct = screen.getByTestId("pct");
+      const commentary = screen.getByTestId("commentary");
+      const file = screen.getByAltText("file");
+
+      fireEvent.change(expenseType, {
+        target: { value: "Restaurants et bars" },
+      });
+      fireEvent.change(expenseName, { target: { value: "Dinner" } });
+      fireEvent.change(amount, { target: { value: "100" } });
+      fireEvent.change(datepicker, { target: { value: "2023-10-10" } });
+      fireEvent.change(vat, { target: { value: "20" } });
+      fireEvent.change(pct, { target: { value: "10" } });
+      fireEvent.change(commentary, { target: { value: "Business dinner" } });
+      fireEvent.change(file, {
+        target: {
+          files: [
+            new File(["file content"], "file.png", { type: "image/png" }),
+          ],
+        },
+      });
+
+      fireEvent(
+        screen.getById("btn-send-bill", "Submit"),
+        new MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+    });
+
+    test("Then the API responds with an error and displays the error message to the user", async () => {
+      document.body.innerHTML = NewBillUI();
+      const onNavigate = jest.fn();
+      const store = {};
+
+      // Initialisation de localStorage avec les données nécessaires
+      window.localStorage.setItem(
+        "user",
+        JSON.stringify({ email: "employee@test.tld" })
+      );
+
+      const newBill = new NewBill({
+        document,
+        onNavigate,
+        store,
+        localStorage: window.localStorage,
+      });
+    });
+  });
+});
