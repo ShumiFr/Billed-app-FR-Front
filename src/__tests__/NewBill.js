@@ -7,6 +7,7 @@ import NewBillUI from "../views/NewBillUI.js";
 import NewBill from "../containers/NewBill.js";
 import { ROUTES_PATH } from "../constants/routes.js";
 import { localStorageMock } from "../__mocks__/localStorage.js";
+import storeMock from "../__mocks__/store.js";
 
 describe("Given I am connected as an employee", () => {
   describe("When I am on NewBill Page", () => {
@@ -130,81 +131,6 @@ describe("Given I am connected as an employee", () => {
       // Nettoyage
       alertSpy.mockRestore();
     });
-
-    test("HandleSubmit should call updateBill and onNavigate", () => {
-      document.body.innerHTML = NewBillUI();
-      const onNavigate = jest.fn();
-      const store = {};
-
-      // Initialisation de localStorage avec les données nécessaires
-      window.localStorage.setItem(
-        "user",
-        JSON.stringify({ email: "employee@test.tld" })
-      );
-
-      const newBill = new NewBill({
-        document,
-        onNavigate,
-        store,
-        localStorage: window.localStorage,
-      });
-
-      // Mock de updateBill pour vérifier qu'il est appelé correctement
-      const updateBillSpy = jest
-        .spyOn(newBill, "updateBill")
-        .mockImplementation(() => {});
-
-      // Je récupère le formulaire
-      const form = document.querySelector(`form[data-testid="form-new-bill"]`);
-      expect(form).not.toBeNull(); // Vérifie que l'élément existe
-
-      // Je définis les valeurs des champs du formulaire
-      form.querySelector(`select[data-testid="expense-type"]`).value =
-        "Transports";
-      form.querySelector(`input[data-testid="expense-name"]`).value =
-        "Train ticket";
-      form.querySelector(`input[data-testid="amount"]`).value = "100";
-      form.querySelector(`input[data-testid="datepicker"]`).value =
-        "2023-10-10";
-      form.querySelector(`input[data-testid="vat"]`).value = "20";
-      form.querySelector(`input[data-testid="pct"]`).value = "10";
-      form.querySelector(`textarea[data-testid="commentary"]`).value =
-        "Business trip";
-      newBill.fileUrl = "https://example.com/file.png";
-      newBill.fileName = "file.png";
-
-      // Simule l'événement de soumission
-      const submitEvent = {
-        preventDefault: jest.fn(),
-        target: form,
-      };
-
-      newBill.handleSubmit(submitEvent);
-
-      // Vérifie que preventDefault a été appelé
-      expect(submitEvent.preventDefault).toHaveBeenCalled();
-
-      // Vérifie que updateBill a été appelé avec les bons arguments
-      expect(updateBillSpy).toHaveBeenCalledWith({
-        email: "employee@test.tld",
-        type: "Transports",
-        name: "Train ticket",
-        amount: 100,
-        date: "2023-10-10",
-        vat: "20",
-        pct: 10,
-        commentary: "Business trip",
-        fileUrl: "https://example.com/file.png",
-        fileName: "file.png",
-        status: "pending",
-      });
-
-      // Vérifie que onNavigate a été appelé avec le bon argument
-      expect(onNavigate).toHaveBeenCalledWith(ROUTES_PATH["Bills"]);
-
-      // Nettoyage
-      updateBillSpy.mockRestore();
-    });
   });
 });
 
@@ -240,54 +166,87 @@ describe("Given I am connected as an employee", () => {
     test("Then the API call should be correct and the redirection to the expense page should be performed", async () => {
       document.body.innerHTML = NewBillUI();
       const onNavigate = jest.fn();
-      const store = {};
 
-      // Initialisation de localStorage avec les données nécessaires
+      Object.defineProperty(window, "localStorage", {
+        value: localStorageMock,
+      });
+
       window.localStorage.setItem(
         "user",
-        JSON.stringify({ email: "employee@test.tld" })
+        JSON.stringify({
+          email: "employee@test.tld",
+        })
       );
 
       const newBill = new NewBill({
         document,
         onNavigate,
-        store,
+        store: storeMock,
         localStorage: window.localStorage,
       });
 
-      const expenseType = screen.getByTestId("expense-type");
-      const expenseName = screen.getByTestId("expense-name");
-      const amount = screen.getByTestId("amount");
-      const datepicker = screen.getByTestId("datepicker");
-      const vat = screen.getByTestId("vat");
-      const pct = screen.getByTestId("pct");
-      const commentary = screen.getByTestId("commentary");
-      const file = screen.getByAltText("file");
+      screen.getByTestId("expense-type").value = "Restaurants et bars";
+      screen.getByTestId("expense-name").value = "Dinner";
+      screen.getByTestId("amount").value = 100;
+      screen.getByTestId("datepicker").value = "2023-10-10";
+      screen.getByTestId("vat").value = 20;
+      screen.getByTestId("pct").value = 10;
+      screen.getByTestId("commentary").value = "Business dinner";
 
-      fireEvent.change(expenseType, {
-        target: { value: "Restaurants et bars" },
+      // Je me construit un fichier avec une extension valide
+      const validFile = new File(["file content"], "file.png", {
+        type: "image/png",
       });
-      fireEvent.change(expenseName, { target: { value: "Dinner" } });
-      fireEvent.change(amount, { target: { value: "100" } });
-      fireEvent.change(datepicker, { target: { value: "2023-10-10" } });
-      fireEvent.change(vat, { target: { value: "20" } });
-      fireEvent.change(pct, { target: { value: "10" } });
-      fireEvent.change(commentary, { target: { value: "Business dinner" } });
-      fireEvent.change(file, {
+
+      // Je définis mon event de change
+      const changeEvent = {
+        preventDefault: jest.fn(),
         target: {
-          files: [
-            new File(["file content"], "file.png", { type: "image/png" }),
-          ],
+          files: [validFile],
+          value: "C:\\fakepath\\file.png",
         },
-      });
+      };
+
+      newBill.handleChangeFile(changeEvent);
 
       fireEvent(
-        screen.getById("btn-send-bill", "Submit"),
+        screen.getByRole("button", { type: "submit" }),
         new MouseEvent("click", {
           bubbles: true,
           cancelable: true,
         })
       );
+
+      //Je dois m'appuyer sur le mock de l'API pour simuler son appel.
+      //  → Exemple : this.store.bills().update().
+
+      const mockUpdate = jest.fn().mockResolvedValue({ status: 200 });
+      storeMock.bills = jest.fn().mockImplementation(() => {
+        return {
+          update: mockUpdate,
+        };
+      });
+
+      // Appel de la méthode handleSubmit
+      await newBill.handleSubmit(changeEvent);
+
+      // Vérification que l'API est appelée avec les bons arguments
+      expect(mockUpdate).toHaveBeenCalledWith({
+        email: "employee@test.tld",
+        type: "Restaurants et bars",
+        name: "Dinner",
+        amount: 100,
+        date: "2023-10-10",
+        vat: "20",
+        pct: 10,
+        commentary: "Business dinner",
+        fileUrl: "C:\\fakepath\\file.png",
+        fileName: "file.png",
+        status: "pending",
+      });
+
+      // Vérification de la redirection
+      expect(onNavigate).toHaveBeenCalledWith(ROUTES_PATH["Bills"]);
     });
 
     test("Then the API responds with an error and displays the error message to the user", async () => {
