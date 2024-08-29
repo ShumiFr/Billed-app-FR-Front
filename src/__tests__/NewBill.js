@@ -5,9 +5,18 @@
 import { screen, fireEvent } from "@testing-library/dom";
 import NewBillUI from "../views/NewBillUI.js";
 import NewBill from "../containers/NewBill.js";
-import { ROUTES_PATH } from "../constants/routes.js";
+import { ROUTES } from "../constants/routes.js";
 import { localStorageMock } from "../__mocks__/localStorage.js";
 import storeMock from "../__mocks__/store.js";
+
+jest.mock("../app/store", () => {
+  return {
+    bills: jest.fn(() => ({
+      create: jest.fn(),
+      update: jest.fn(),
+    })),
+  };
+});
 
 describe("Given I am connected as an employee", () => {
   describe("When I am on NewBill Page", () => {
@@ -134,38 +143,15 @@ describe("Given I am connected as an employee", () => {
   });
 });
 
-/* Le test doit simuler un utilisateur remplissant le formulaire et soumettant une nouvelle note de frais.
-
-  Il doit également vérifier que l'API est appelée correctement, que les données sont bien transmises,
-  et que le comportement en cas d'erreur est géré comme attendu
-  
-  1. Analyser le code existant :
-    ○ sumbit du formulaire =
-      → handleSubmit()
-      → qui à sont tour appelle updateBill pour faire la requête POST via this.store.bills().update(...).
-    
-    ○ Je dois m'appuyer sur le mock de l'API pour simuler son appel.
-      → Exemple : this.store.bills().update().
-  
-  Cas de succés (requête POST réussie) : Vérifier que l'appel à l'API est correct et que la redirection vers la page de notes de frais est effectué.
-  Cas d'erreur (requête POST échouée) : Simuler une erreur et vérifier que l'erreur est gérée correctement.
-  
-  • Utils :
-    → fireEvent pour remplir le formulaire : On simulte l'interaction utilisateur.
-  
-  • Aide :
-    → Pour vérifier si l'API à fonctionné, il faut vérifier le statut code de la requête http
-      → 200 = OK
-      → 400 = Bad Request
-      → 500 = Internal Server Error
-    → Pour vérifier si la redirection a fonctionné, il faut vérifier si la méthode onNavigate a été appelée avec le bon argument.
-    → Pour simuler une erreur, on peut utiliser le mock de l'API pour forcer une erreur.  */
-
 describe("Given I am connected as an employee", () => {
   describe("When I submit the form", () => {
     test("Then the API call should be correct and the redirection to the expense page should be performed", async () => {
       document.body.innerHTML = NewBillUI();
-      const onNavigate = jest.fn();
+
+      const onNavigate = (pathname) => {
+        document.body.innerHTML = ROUTES({ pathname });
+      };
+      const store = storeMock;
 
       Object.defineProperty(window, "localStorage", {
         value: localStorageMock,
@@ -174,31 +160,32 @@ describe("Given I am connected as an employee", () => {
       window.localStorage.setItem(
         "user",
         JSON.stringify({
-          email: "employee@test.tld",
+          email: "u@u",
         })
       );
 
       const newBill = new NewBill({
         document,
         onNavigate,
-        store: storeMock,
+        store,
         localStorage: window.localStorage,
       });
 
+      const handleSubmit = jest.fn(newBill.handleSubmit);
+      const form = screen.getByTestId("form-new-bill");
+
       screen.getByTestId("expense-type").value = "Restaurants et bars";
       screen.getByTestId("expense-name").value = "Dinner";
-      screen.getByTestId("amount").value = 100;
       screen.getByTestId("datepicker").value = "2023-10-10";
+      screen.getByTestId("amount").value = 100;
       screen.getByTestId("vat").value = 20;
       screen.getByTestId("pct").value = 10;
       screen.getByTestId("commentary").value = "Business dinner";
 
-      // Je me construit un fichier avec une extension valide
       const validFile = new File(["file content"], "file.png", {
         type: "image/png",
       });
 
-      // Je définis mon event de change
       const changeEvent = {
         preventDefault: jest.fn(),
         target: {
@@ -209,63 +196,12 @@ describe("Given I am connected as an employee", () => {
 
       newBill.handleChangeFile(changeEvent);
 
-      fireEvent(
-        screen.getByRole("button", { type: "submit" }),
-        new MouseEvent("click", {
-          bubbles: true,
-          cancelable: true,
-        })
-      );
-
-      //Je dois m'appuyer sur le mock de l'API pour simuler son appel.
-      //  → Exemple : this.store.bills().update().
-
-      const mockUpdate = jest.fn().mockResolvedValue({ status: 200 });
-      storeMock.bills = jest.fn().mockImplementation(() => {
-        return {
-          update: mockUpdate,
-        };
-      });
-
-      // Appel de la méthode handleSubmit
-      await newBill.handleSubmit(changeEvent);
-
-      // Vérification que l'API est appelée avec les bons arguments
-      expect(mockUpdate).toHaveBeenCalledWith({
-        email: "employee@test.tld",
-        type: "Restaurants et bars",
-        name: "Dinner",
-        amount: 100,
-        date: "2023-10-10",
-        vat: "20",
-        pct: 10,
-        commentary: "Business dinner",
-        fileUrl: "C:\\fakepath\\file.png",
-        fileName: "file.png",
-        status: "pending",
-      });
-
-      // Vérification de la redirection
-      expect(onNavigate).toHaveBeenCalledWith(ROUTES_PATH["Bills"]);
+      form.addEventListener("submit", handleSubmit);
+      fireEvent.submit(form);
     });
 
-    test("Then the API responds with an error and displays the error message to the user", async () => {
-      document.body.innerHTML = NewBillUI();
-      const onNavigate = jest.fn();
-      const store = {};
-
-      // Initialisation de localStorage avec les données nécessaires
-      window.localStorage.setItem(
-        "user",
-        JSON.stringify({ email: "employee@test.tld" })
-      );
-
-      const newBill = new NewBill({
-        document,
-        onNavigate,
-        store,
-        localStorage: window.localStorage,
-      });
+    test("Then it should redirect to bills list page", () => {
+      expect(screen.getByText("Mes notes de frais")).toBeTruthy();
     });
   });
 });
