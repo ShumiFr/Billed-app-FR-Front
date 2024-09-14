@@ -145,7 +145,7 @@ describe("Given I am connected as an employee", () => {
 
 describe("Given I am connected as an employee", () => {
   describe("When I submit the form", () => {
-    test("Then the API call should be correct and the redirection to the expense page should be performed", async () => {
+    test("Then the handleSubmit should redirect to the bills list page", async () => {
       document.body.innerHTML = NewBillUI();
 
       const onNavigate = (pathname) => {
@@ -198,9 +198,7 @@ describe("Given I am connected as an employee", () => {
 
       form.addEventListener("submit", handleSubmit);
       fireEvent.submit(form);
-    });
 
-    test("Then it should redirect to bills list page", () => {
       expect(screen.getByText("Mes notes de frais")).toBeTruthy();
     });
   });
