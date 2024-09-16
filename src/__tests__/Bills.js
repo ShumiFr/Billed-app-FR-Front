@@ -31,7 +31,7 @@ describe("Given I am connected as an employee", () => {
       window.onNavigate(ROUTES_PATH.Bills);
       await waitFor(() => screen.getByTestId("icon-window"));
       const windowIcon = screen.getByTestId("icon-window");
-      expect(windowIcon.classList.contains("active-icon")).toBe(true);
+      expect(windowIcon.classList.contains("active-icon")).toBe(true); // Vérifier que la classe "active-icon" a été ajoutée
     });
 
     test("Then bills should be ordered from earliest to latest", () => {
@@ -118,13 +118,23 @@ describe("Given I am connected as an employee", () => {
         })),
       };
 
+      // Spy sur la méthode bills() du store
+      const billsSpy = jest.spyOn(mockStore, "bills");
+
       // Instancier la classe Bills avec le store mocké
       const billsInstance = new Bills({ store: mockStore, document });
 
       // Appeler la méthode getBills
       const bills = await billsInstance.getBills();
 
-      // Faire un spy pour verifier que le mock .list() a été appelé
+      // Vérifier que la méthode bills a été appelée
+      expect(billsSpy).toHaveBeenCalled();
+
+      // Vérifier que les factures retournées sont correctement formatées
+      expect(bills).toEqual([
+        { date: "31 Déc. 22", status: "En attente" },
+        { date: "30 Nov. 22", status: "Accepté" },
+      ]);
     });
 
     test("Then it should log an error and return unformatted date if formatDate fails", async () => {
@@ -159,6 +169,54 @@ describe("Given I am connected as an employee", () => {
 
       // Nettoyer le spy
       consoleSpy.mockRestore();
+    });
+
+    test("fetches bills from an API and fails with 404 message error", async () => {
+      // Mock de la méthode list pour renvoyer une erreur 404
+      const mockStore = {
+        bills: jest.fn(() => ({
+          list: jest.fn().mockRejectedValue(new Error("Erreur 404")),
+        })),
+      };
+
+      // Instancier la classe Bills avec le store mocké
+      const billsInstance = new Bills({ store: mockStore, document });
+
+      // Appeler la méthode getBills et vérifier la gestion de l'erreur
+      try {
+        await billsInstance.getBills();
+      } catch (error) {
+        expect(error.message).toBe("Erreur 404");
+      }
+
+      // Vérifier que l'erreur 404 est affichée à l'écran
+      document.body.innerHTML = BillsUI({ error: "Erreur 404" });
+      const message = await screen.getByText(/Erreur 404/);
+      expect(message).toBeTruthy();
+    });
+
+    test("fetches bills from an API and fails with 500 message error", async () => {
+      // Mock de la méthode list pour renvoyer une erreur 500
+      const mockStore = {
+        bills: jest.fn(() => ({
+          list: jest.fn().mockRejectedValue(new Error("Erreur 500")),
+        })),
+      };
+
+      // Instancier la classe Bills avec le store mocké
+      const billsInstance = new Bills({ store: mockStore, document });
+
+      // Appeler la méthode getBills et vérifier la gestion de l'erreur
+      try {
+        await billsInstance.getBills();
+      } catch (error) {
+        expect(error.message).toBe("Erreur 500");
+      }
+
+      // Vérifier que l'erreur 500 est affichée à l'écran
+      document.body.innerHTML = BillsUI({ error: "Erreur 500" });
+      const message = await screen.getByText(/Erreur 500/);
+      expect(message).toBeTruthy();
     });
   });
 });
